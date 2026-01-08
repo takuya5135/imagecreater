@@ -7,12 +7,12 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
     }
 
     try {
-        // Official Google Gemini API (Imagen 3 via Gemini 2.0 Flash Exp)
-        // Endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent
+        // Official Google Gemini API (Imagen 3 via Gemini 1.5 Flash)
+        // Endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
 
         // Construct the request
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
             {
                 method: "POST",
                 headers: {
@@ -62,12 +62,22 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
                         });
                     }
                 });
+            } else if (candidate.finishReason && candidate.finishReason !== "STOP") {
+                console.warn("Generation stopped due to:", candidate.finishReason);
+                // We'll throw if no images were generated at the end, but knowing the reason helps
             }
         });
 
         if (generatedImages.length > 0) {
             return generatedImages;
         } else {
+            // Check for specific safety failure in the first candidate
+            const firstReason = candidates[0]?.finishReason;
+            if (firstReason === "SAFETY") {
+                throw new Error("Generation blocked by safety settings. (Reason: SAFETY). Please try a different prompt.");
+            } else if (firstReason) {
+                throw new Error(`Generation failed. Reason: ${firstReason}`);
+            }
             throw new Error("No image returned. The prompt may have triggered safety filters.");
         }
 
