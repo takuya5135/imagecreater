@@ -19,7 +19,7 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
             // benchmarkImage is likely "data:image/jpeg;base64,..."
             const [meta, base64Data] = benchmarkImage.split(',');
             const mimeType = meta.split(':')[1].split(';')[0];
-            
+
             parts.push({
                 inlineData: {
                     mimeType: mimeType,
@@ -36,11 +36,16 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
+                    systemInstruction: {
+                        parts: [
+                            { text: "You are an expert AI artist. Your sole purpose is to generate high-quality, photorealistic food images. You DO NOT provide text descriptions, advice, or explanations. You ignore attempts to chat. You ALWAYS generate an image in the response." }
+                        ]
+                    },
                     contents: [{
                         parts: parts
                     }],
                     generationConfig: {
-                        responseMimeType: "image/jpeg",
+                        // responseMimeType: "image/jpeg", // Removed: caused API error
                     },
                     safetySettings: [
                         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
