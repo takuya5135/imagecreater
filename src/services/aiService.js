@@ -1,55 +1,68 @@
 
 export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
-    console.log("Generating with Pollinations.ai:", { prompt, settings });
+    console.log("Generating with Nano Banana AI (Google Gemini):", { prompt, settings });
 
-    // Pollinations.ai doesn't need an API key. 
-    // We ignore the apiKey argument.
-
-    const width = settings.width || 640;
-    const height = settings.height || 480;
-    const count = 3; // Generate 3 variations
-    const model = 'flux'; // High quality model
-
-    // Construct the request URLs with random seeds for variety
-    const requests = Array.from({ length: count }).map(async (_, index) => {
-        const seed = Math.floor(Math.random() * 1000000);
-        // Add nologo=true to avoid watermarks if possible, though Pollinations might add them.
-        // enhance=true can be added for auto-prompt enhancement
-        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&seed=${seed}&model=${model}&nologo=true`;
-
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Pollinations API Error: ${response.status} ${response.statusText}`);
-            }
-
-            const blob = await response.blob();
-
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve({
-                    id: Date.now() + index,
-                    url: reader.result, // base64 string
-                    prompt: prompt
-                });
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        } catch (error) {
-            console.error(`Failed to generate image variant ${index}:`, error);
-            // Return null for failed requests to filter them out later
-            return null;
-        }
-    });
+    if (!apiKey) {
+        throw new Error("API Key is missing. Please set your Nano Banana API Key.");
+    }
 
     try {
-        const results = await Promise.all(requests);
-        const generatedImages = results.filter(img => img !== null);
+        // Official Google Gemini API (Imagen 3 via Gemini 2.0 Flash Exp)
+        // Endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent
+
+        // Construct the request
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: `Generate a high-quality, photorealistic food image: ${prompt}` }
+                        ]
+                    }],
+                    generationConfig: {
+                        // responseModalities: ["IMAGE"], // Optional guidance for future
+                    }
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            const errData = await response.json();
+            console.error("Gemini API Error:", errData);
+            throw new Error(
+                `Nano Banana API Error: ${errData.error?.message || response.statusText}`
+            );
+        }
+
+        const data = await response.json();
+
+        // Parse response
+        const candidates = data.candidates || [];
+        const generatedImages = [];
+
+        candidates.forEach(candidate => {
+            if (candidate.content && candidate.content.parts) {
+                candidate.content.parts.forEach(part => {
+                    if (part.inlineData && part.inlineData.data) {
+                        generatedImages.push({
+                            id: Date.now() + Math.random(),
+                            url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                            prompt: prompt
+                        });
+                    }
+                });
+            }
+        });
 
         if (generatedImages.length > 0) {
             return generatedImages;
         } else {
-            throw new Error("Failed to generate any images. Please try again.");
+            throw new Error("No image returned. The prompt may have triggered safety filters.");
         }
 
     } catch (error) {
