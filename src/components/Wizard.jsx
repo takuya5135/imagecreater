@@ -173,9 +173,14 @@ const Wizard = () => {
                         <img src={benchmarkImage} alt="Benchmark" style={{ height: '100px', borderRadius: '4px' }} />
                     </div>
                     <SettingsForm settings={settings} setSettings={setSettings} />
-                    <button className="btn-primary" onClick={handleGenerate}>
-                        画像を生成する
-                    </button>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                        <button className="btn-secondary" onClick={() => setStep(1)} style={{ background: '#444', color: '#fff', padding: '10px', flex: 1 }}>
+                            ← 戻る
+                        </button>
+                        <button className="btn-primary" onClick={handleGenerate} style={{ flex: 2 }}>
+                            画像を生成する
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -187,17 +192,25 @@ const Wizard = () => {
                             <p>最高の料理画像を調理中... (Nano Banana AI)</p>
                         </div>
                     ) : (
-                        <ImageGallery
-                            images={generatedImages}
-                            onSelect={handleSelect}
-                            onDownload={handleDownload}
-                        />
+                        <div>
+                            <button className="btn-small" onClick={() => setStep(2)} style={{ marginBottom: '10px', background: 'transparent', color: '#aaa', border: '1px solid #444', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>
+                                ← 設定に戻る
+                            </button>
+                            <ImageGallery
+                                images={generatedImages}
+                                onSelect={handleSelect}
+                                onDownload={handleDownload}
+                            />
+                        </div>
                     )}
                 </div>
             )}
 
             {step === 4 && (
                 <div className="step-content">
+                    <button className="btn-small" onClick={() => setStep(3)} style={{ marginBottom: '10px', background: 'transparent', color: '#aaa', border: '1px solid #444', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>
+                        ← 一覧に戻る
+                    </button>
                     <h2>改善 (Refine)</h2>
                     <RefineInput
                         selectedImage={selectedImage}
