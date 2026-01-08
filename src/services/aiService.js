@@ -10,7 +10,24 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
         // Official Google Gemini API (Imagen 3 via Gemini 2.0 Flash Exp)
         // Endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent
 
-        // Construct the request
+        // Construct the parts array
+        const parts = [
+            { text: `Generate an image of ${prompt}` }
+        ];
+
+        if (benchmarkImage) {
+            // benchmarkImage is likely "data:image/jpeg;base64,..."
+            const [meta, base64Data] = benchmarkImage.split(',');
+            const mimeType = meta.split(':')[1].split(';')[0];
+            
+            parts.push({
+                inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                }
+            });
+        }
+
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
             {
@@ -20,12 +37,10 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
                 },
                 body: JSON.stringify({
                     contents: [{
-                        parts: [
-                            { text: `Generate an image of ${prompt}. Do not offer advice or descriptions. Just generate the image.` }
-                        ]
+                        parts: parts
                     }],
                     generationConfig: {
-                        // responseModalities: ["IMAGE"], // Not supported by this model version
+                        responseMimeType: "image/jpeg",
                     },
                     safetySettings: [
                         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
