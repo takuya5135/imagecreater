@@ -21,11 +21,11 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
                 body: JSON.stringify({
                     contents: [{
                         parts: [
-                            { text: `Generate a high-quality, photorealistic food image: ${prompt}` }
+                            { text: `Generate an image: ${prompt}` }
                         ]
                     }],
                     generationConfig: {
-                        // responseModalities: ["IMAGE"], // Optional guidance for future
+                        responseModalities: ["IMAGE"],
                     },
                     safetySettings: [
                         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
