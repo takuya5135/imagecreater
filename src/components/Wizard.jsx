@@ -42,11 +42,14 @@ const Wizard = () => {
     };
 
     const handleGenerate = async () => {
+        // API Key is not required for Pollinations AI
+        /* 
         if (!apiKey) {
             alert("Nano Banana AI を使用するにはAPIキーが必要です。");
             setShowApiKeyInput(true);
             return;
-        }
+        } 
+        */
 
         setStep(3);
         setIsLoading(true);
@@ -167,7 +170,7 @@ const Wizard = () => {
                     {isLoading ? (
                         <div className="loading-state">
                             <div className="spinner"></div>
-                            <p>最高の料理画像を調理中... (Nano Banana AI)</p>
+                            <p>最高の料理画像を調理中... (Pollinations AI)</p>
                         </div>
                     ) : (
                         <ImageGallery
