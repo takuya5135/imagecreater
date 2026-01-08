@@ -102,12 +102,21 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
         throw new Error("API Key is missing. Please set your Nano Banana API Key.");
     }
 
-    // Run 3 generation requests in parallel
-    const promises = [
-        generateSingleImage(apiKey, prompt, benchmarkImage, settings),
-        generateSingleImage(apiKey, prompt, benchmarkImage, settings),
-        generateSingleImage(apiKey, prompt, benchmarkImage, settings)
+    // Define 3 explicit variations to ensure diversity
+    // Variation 1: Balanced / Standard (The user's direct intent)
+    // Variation 2: Overhead View / Flat Lay (Focus on composition & layout)
+    // Variation 3: Macro / Cinematic (Focus on texture, depth offered, and dramatic lighting)
+
+    const variations = [
+        "", // Standard (Base prompt)
+        " (Overhead view, flat lay composition, organized layout, commercial food photography style)",
+        " (Macro close-up, highly detailed texture, shallow depth of field, dramatic cinematic lighting, side angle)"
     ];
+
+    // Run 3 generation requests in parallel with different prompt suffixes
+    const promises = variations.map(suffix =>
+        generateSingleImage(apiKey, prompt + suffix, benchmarkImage, settings)
+    );
 
     const results = await Promise.all(promises);
     const validImages = results.filter(img => img !== null);
