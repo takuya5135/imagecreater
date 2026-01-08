@@ -73,8 +73,14 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
         } else {
             // Check for specific safety failure in the first candidate
             const firstReason = candidates[0]?.finishReason;
+            const firstContent = candidates[0]?.content?.parts?.[0]?.text;
+
             if (firstReason === "SAFETY") {
                 throw new Error("Generation blocked by safety settings. (Reason: SAFETY). Please try a different prompt.");
+            } else if (firstContent) {
+                // The model returned text instead of an image (likely a refusal or explanation)
+                console.warn("Model returned text instead of image:", firstContent);
+                throw new Error(`Generation failed. The model responded: "${firstContent.slice(0, 200)}..."`);
             } else if (firstReason) {
                 throw new Error(`Generation failed. Reason: ${firstReason}`);
             }
