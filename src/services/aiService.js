@@ -7,12 +7,12 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
     }
 
     try {
-        // Official Google Gemini API (Imagen 3 via Gemini 1.5 Flash)
-        // Endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
+        // Official Google Gemini API (Imagen 3 via Gemini 2.0 Flash Exp)
+        // Endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent
 
         // Construct the request
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
             {
                 method: "POST",
                 headers: {
