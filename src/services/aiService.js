@@ -21,11 +21,11 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
                 body: JSON.stringify({
                     contents: [{
                         parts: [
-                            { text: `Generate an image: ${prompt}` }
+                            { text: `Generate an image of ${prompt}. Do not offer advice or descriptions. Just generate the image.` }
                         ]
                     }],
                     generationConfig: {
-                        responseModalities: ["IMAGE"],
+                        // responseModalities: ["IMAGE"], // Not supported by this model version
                     },
                     safetySettings: [
                         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
