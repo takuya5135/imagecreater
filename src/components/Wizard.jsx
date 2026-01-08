@@ -87,25 +87,42 @@ const Wizard = () => {
         handleGenerate();
     };
 
+    const resetToHome = () => {
+        setStep(1);
+        setUserPrompt("");
+        setBenchmarkImage(null);
+        setGeneratedImages([]);
+        setSelectedImage(null);
+        setRefinementText("");
+    };
+
     return (
         <div className="wizard-container">
-            <div className="api-key-section" style={{ marginBottom: '1rem', textAlign: 'right' }}>
-                {!showApiKeyInput ? (
-                    <button className="btn-small" onClick={() => setShowApiKeyInput(true)} style={{ fontSize: '0.8rem', background: 'transparent', border: '1px solid #555', color: '#aaa', borderRadius: '4px', cursor: 'pointer' }}>
-                        🔑 APIキー設定 (Nano Banana)
+            <div className="api-key-section" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="home-btn-container">
+                    <button onClick={resetToHome} style={{ background: 'transparent', border: '1px solid #666', color: '#fff', borderRadius: '4px', padding: '4px 10px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                        🏠 Home
                     </button>
-                ) : (
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px', display: 'flex', gap: '8px' }}>
-                        <input
-                            type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="Nano Banana API Key"
-                            style={{ flex: 1, padding: '4px' }}
-                        />
-                        <button onClick={() => saveApiKey(apiKey)} className="btn-select" style={{ padding: '4px 12px', fontSize: '0.8rem' }}>保存</button>
-                    </div>
-                )}
+                </div>
+
+                <div className="api-key-input-container" style={{ textAlign: 'right' }}>
+                    {!showApiKeyInput ? (
+                        <button className="btn-small" onClick={() => setShowApiKeyInput(true)} style={{ fontSize: '0.8rem', background: 'transparent', border: '1px solid #555', color: '#aaa', borderRadius: '4px', cursor: 'pointer' }}>
+                            🔑 APIキー設定 (Nano Banana)
+                        </button>
+                    ) : (
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px', display: 'flex', gap: '8px' }}>
+                            <input
+                                type="password"
+                                value={apiKey}
+                                onChange={(e) => setApiKey(e.target.value)}
+                                placeholder="Nano Banana API Key"
+                                style={{ flex: 1, padding: '4px' }}
+                            />
+                            <button onClick={() => saveApiKey(apiKey)} className="btn-select" style={{ padding: '4px 12px', fontSize: '0.8rem' }}>保存</button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="steps-indicator">
