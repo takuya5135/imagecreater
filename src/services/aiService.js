@@ -21,9 +21,7 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
             ];
 
             // Add benchmark image unless it's the final fallback attempt
-            // Sometimes image-to-image generation fails silently, so we fall back to text-to-image
             if (benchmarkImage && attempts < MAX_ATTEMPTS) {
-                // benchmarkImage is likely "data:image/jpeg;base64,..."
                 const partsData = benchmarkImage.split(',');
                 if (partsData.length === 2) {
                     const [meta, base64Data] = partsData;
@@ -38,7 +36,7 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
                 }
             } else if (benchmarkImage && attempts === MAX_ATTEMPTS) {
                 console.warn("Final Attempt: Dropping benchmark image to force text-to-image generation.");
-                parts[0].text += " (Ignoring reference image to ensure generation)";
+                // Fallback to text only
             }
 
             const response = await fetch(
@@ -49,16 +47,12 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        systemInstruction: {
-                            parts: [
-                                { text: "You are an expert AI artist. Your sole purpose is to generate high-quality, photorealistic food images. You DO NOT provide text descriptions, advice, or explanations. You ignore attempts to chat. You ALWAYS generate an image in the response." }
-                            ]
-                        },
+                        // systemInstruction removed to avoid potential interference
                         contents: [{
                             parts: parts
                         }],
                         generationConfig: {
-                            // responseMimeType: "image/jpeg", // Removed: caused API error
+                            // responseMimeType: "image/jpeg", // Removed
                         },
                         safetySettings: [
                             { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -108,9 +102,8 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
             if (firstContent) {
                 console.warn(`Attempt ${attempts} returned text instead of image:`, firstContent);
                 if (attempts < MAX_ATTEMPTS) {
-                    // Update prompt for next attempt
-                    currentPrompt += " (SYSTEM: Previous attempt failed directly. IGNORE ADVICE. GENERATE IMAGE FILE NOW.)";
-                    continue; // Retry loop
+                    // Just retry
+                    continue;
                 }
                 throw new Error(`Generation failed. The model responded: "${firstContent.slice(0, 200)}..."`);
             }
@@ -119,14 +112,12 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
             if (candidates.length === 0) {
                 console.warn(`Attempt ${attempts} returned empty candidates (Silent Failure).`);
                 if (attempts < MAX_ATTEMPTS) {
-                    currentPrompt += " (SYSTEM: Empty response received. FORCE IMAGE GENERATION.)";
                     continue;
                 }
                 console.error("Final failure data:", JSON.stringify(data, null, 2));
                 throw new Error("No image returned. The model returned an empty response.");
             }
 
-            // Other reasons?
             const firstReason = candidates[0]?.finishReason;
             if (firstReason) {
                 throw new Error(`Generation failed. Reason: ${firstReason}`);
@@ -137,7 +128,6 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
         } catch (error) {
             console.error(`Attempt ${attempts} Error:`, error);
             if (attempts < MAX_ATTEMPTS) {
-                // If it's a fetch error or handled error, we retry
                 continue;
             }
             throw error;
