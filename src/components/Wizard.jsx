@@ -54,7 +54,7 @@ const Wizard = () => {
             // Prompt construction
             const contextStr = settings.context.join(", ");
             // Combine userPrompt (main) + context + refinement
-            const finalPrompt = `${userPrompt}. A ${settings.style} of food, context: ${contextStr}. ${refinementText}. (No people, food photography, close-up)`;
+            const finalPrompt = `${userPrompt}. A ${settings.style} of food, context: ${contextStr}. ${refinementText}. (No people, food photography, close-up, no text, no writing, no watermark, no typography)`;
 
             const images = await generateImages(apiKey, finalPrompt, benchmarkImage, settings);
             setGeneratedImages(images);
