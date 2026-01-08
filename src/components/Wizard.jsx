@@ -9,8 +9,8 @@ const Wizard = () => {
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
 
-    // API Key State - Pre-filled with user's key
-    const DEFAULT_KEY = "AIzaSyA2uuUsA2pZTzTTC8335xzzDLAGzNq2fqM";
+    // API Key State - Pre-filled with environment variable if available
+    const DEFAULT_KEY = import.meta.env.VITE_GOOGLE_AI_API_KEY || "";
     const [apiKey, setApiKey] = useState(localStorage.getItem('GOOGLE_AI_API_KEY') || DEFAULT_KEY);
     const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
