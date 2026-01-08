@@ -20,17 +20,25 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
                 { text: `Generate an image of ${currentPrompt}` }
             ];
 
-            if (benchmarkImage) {
+            // Add benchmark image unless it's the final fallback attempt
+            // Sometimes image-to-image generation fails silently, so we fall back to text-to-image
+            if (benchmarkImage && attempts < MAX_ATTEMPTS) {
                 // benchmarkImage is likely "data:image/jpeg;base64,..."
-                const [meta, base64Data] = benchmarkImage.split(',');
-                const mimeType = meta.split(':')[1].split(';')[0];
+                const partsData = benchmarkImage.split(',');
+                if (partsData.length === 2) {
+                    const [meta, base64Data] = partsData;
+                    const mimeType = meta.split(':')[1].split(';')[0];
 
-                parts.push({
-                    inlineData: {
-                        mimeType: mimeType,
-                        data: base64Data
-                    }
-                });
+                    parts.push({
+                        inlineData: {
+                            mimeType: mimeType,
+                            data: base64Data
+                        }
+                    });
+                }
+            } else if (benchmarkImage && attempts === MAX_ATTEMPTS) {
+                console.warn("Final Attempt: Dropping benchmark image to force text-to-image generation.");
+                parts[0].text += " (Ignoring reference image to ensure generation)";
             }
 
             const response = await fetch(
