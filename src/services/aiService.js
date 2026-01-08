@@ -84,7 +84,8 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
             } else if (firstReason) {
                 throw new Error(`Generation failed. Reason: ${firstReason}`);
             }
-            throw new Error("No image returned. The prompt may have triggered safety filters.");
+            console.error("No image found in response. Raw Data:", JSON.stringify(data, null, 2));
+            throw new Error(`No image returned. Raw response: ${JSON.stringify(data).slice(0, 500)}`);
         }
 
     } catch (error) {
