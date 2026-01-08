@@ -1,31 +1,138 @@
 
 export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
-    console.log("Checking available models...");
+    console.log("Generating with Nano Banana AI (Gemini 2.5 Flash Image):", { prompt, settings });
 
     if (!apiKey) {
-        throw new Error("API Key is missing.");
+        throw new Error("API Key is missing. Please set your Nano Banana API Key.");
     }
 
-    try {
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-        );
-        const data = await response.json();
-        const models = data.models || [];
+    let attempts = 0;
+    const MAX_ATTEMPTS = 3;
+    let currentPrompt = prompt;
 
-        // Filter for relevant models
-        const relevant = models
-            .filter(m => m.name.includes("gemini") || m.name.includes("imagen") || m.name.includes("image"))
-            .map(m => m.name.replace("models/", ""))
-            .join("\n");
+    while (attempts < MAX_ATTEMPTS) {
+        attempts++;
+        console.log(`Attempt ${attempts} / ${MAX_ATTEMPTS}`);
 
-        alert("Available Models:\n" + relevant);
-        console.log("All Models:", models);
+        try {
+            // Construct the parts array
+            const parts = [
+                { text: `Generate an image of ${currentPrompt}` }
+            ];
 
-        // Throw an error to stop the wizard flow but keep the logic "successful" in terms of diagnosis
-        throw new Error("Model list check complete. Please report the models shown in the alert.");
-    } catch (error) {
-        console.error("List Models Failed:", error);
-        throw error;
+            // Add benchmark image unless it's the final fallback attempt
+            if (benchmarkImage && attempts < MAX_ATTEMPTS) {
+                const partsData = benchmarkImage.split(',');
+                if (partsData.length === 2) {
+                    const [meta, base64Data] = partsData;
+                    const mimeType = meta.split(':')[1].split(';')[0];
+
+                    parts.push({
+                        inlineData: {
+                            mimeType: mimeType,
+                            data: base64Data
+                        }
+                    });
+                }
+            } else if (benchmarkImage && attempts === MAX_ATTEMPTS) {
+                console.warn("Final Attempt: Dropping benchmark image to force text-to-image generation.");
+                // Fallback to text only
+            }
+
+            // Use the specific model found in the user's list: gemini-2.5-flash-image
+            // Using generic 'generateContent' endpoint which is standard for Gemini models
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: parts
+                        }],
+                        generationConfig: {
+                            // Some versions might support responseMimeType: "image/jpeg", but let's stick to default for safety first
+                        },
+                        safetySettings: [
+                            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                        ]
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                const errData = await response.json();
+                console.error("Gemini API Error:", errData);
+                throw new Error(
+                    `Nano Banana API Error: ${errData.error?.message || response.statusText}`
+                );
+            }
+
+            const data = await response.json();
+
+            // Parse response
+            const candidates = data.candidates || [];
+            const generatedImages = [];
+
+            candidates.forEach(candidate => {
+                if (candidate.content && candidate.content.parts) {
+                    candidate.content.parts.forEach(part => {
+                        // Check for inline data (image)
+                        if (part.inlineData && part.inlineData.data) {
+                            generatedImages.push({
+                                id: Date.now() + Math.random(),
+                                url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                                prompt: currentPrompt
+                            });
+                        }
+                    });
+                }
+            });
+
+            if (generatedImages.length > 0) {
+                return generatedImages;
+            }
+
+            // No images found - analyze reason for retry
+            // Check for textual refusal
+            const firstContent = candidates[0]?.content?.parts?.[0]?.text;
+            if (firstContent) {
+                console.warn(`Attempt ${attempts} returned text instead of image:`, firstContent);
+                if (attempts < MAX_ATTEMPTS) {
+                    // Just retry
+                    continue;
+                }
+                throw new Error(`Generation failed. The model responded: "${firstContent.slice(0, 200)}..."`);
+            }
+
+            // Check for silent failure (empty candidates)
+            if (candidates.length === 0) {
+                console.warn(`Attempt ${attempts} returned empty candidates (Silent Failure).`);
+                if (attempts < MAX_ATTEMPTS) {
+                    continue;
+                }
+                console.error("Final failure data:", JSON.stringify(data, null, 2));
+                throw new Error("No image returned. The model returned an empty response.");
+            }
+
+            const firstReason = candidates[0]?.finishReason;
+            if (firstReason) {
+                throw new Error(`Generation failed. Reason: ${firstReason}`);
+            }
+
+            throw new Error("No image returned. Unknown error.");
+
+        } catch (error) {
+            console.error(`Attempt ${attempts} Error:`, error);
+            if (attempts < MAX_ATTEMPTS) {
+                continue;
+            }
+            throw error;
+        }
     }
 }
