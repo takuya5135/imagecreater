@@ -29,6 +29,26 @@ const SettingsForm = ({ settings, setSettings }) => {
             </div>
 
             <div className="form-group">
+                <label>人物の描画 (Person Inclusion):</label>
+                <div className="style-options">
+                    <button
+                        className={!settings.allowPeople ? 'active' : ''}
+                        onClick={() => setSettings(prev => ({ ...prev, allowPeople: false }))}
+                        title="人物、人体の生成を禁止します"
+                    >
+                        禁止 (Not Allowed)
+                    </button>
+                    <button
+                        className={settings.allowPeople ? 'active' : ''}
+                        onClick={() => setSettings(prev => ({ ...prev, allowPeople: true }))}
+                        title="人物の生成を許容します"
+                    >
+                        許可 (Allowed)
+                    </button>
+                </div>
+            </div>
+
+            <div className="form-group">
                 <label>サイズ (px):</label>
                 <div className="dimension-inputs">
                     <input

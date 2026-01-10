@@ -21,6 +21,7 @@ const Wizard = () => {
         width: 640,
         height: 480,
         context: [],
+        allowPeople: false, // Default: Not Allowed
     });
     const [generatedImages, setGeneratedImages] = useState([]);
     const [selectedImage, setSelectedImage] = useState(null);
@@ -53,8 +54,20 @@ const Wizard = () => {
         try {
             // Prompt construction
             const contextStr = settings.context.join(", ");
-            // Combine userPrompt (main) + context + refinement
-            const finalPrompt = `${userPrompt}. A ${settings.style} of food, context: ${contextStr}. ${refinementText}. (No people, food photography, close-up, no text, no writing, no watermark, no typography)`;
+
+            const automaticAdditions = "The best food coordinator, Top food stylist";
+            const deepThinking = "Deep thinking";
+
+            let constraints = ["food photography", "close-up", "no text", "no writing", "no watermark", "no typography"];
+
+            if (!settings.allowPeople) {
+                constraints.unshift("No people", "human body prohibited");
+            }
+
+            const constraintStr = `(${constraints.join(", ")})`;
+
+            // Combine userPrompt (main) + auto additions + context + refinement + constraints + deep thinking
+            const finalPrompt = `${userPrompt}. ${automaticAdditions}. A ${settings.style} of food, context: ${contextStr}. ${refinementText}. ${constraintStr} ${deepThinking}`;
 
             const images = await generateImages(apiKey, finalPrompt, benchmarkImage, settings);
             setGeneratedImages(images);
