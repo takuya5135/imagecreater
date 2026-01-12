@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Model Debugger</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #222; color: #fff; }
+        input { padding: 10px; width: 300px; }
+        button { padding: 10px 20px; cursor: pointer; background: #4caf50; color: white; border: none; }
+        pre { background: #333; padding: 10px; overflow: auto; }
+        .model-item { margin-bottom: 10px; padding: 10px; border: 1px solid #444; }
+        .highlight { color: #81c784; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>API Model Debugger</h1>
+    <p>現在のAPIキーで利用可能なモデルを確認します。</p>
+    
+    <div>
+        <input type="text" id="apiKey" placeholder="API Key" />
+        <button onclick="checkModels()">モデル一覧を取得</button>
+    </div>
+
+    <div id="status"></div>
+    <div id="results"></div>
+
+    <script>
+        // Try to load from localStorage used by the app
+        const storedKey = localStorage.getItem('GOOGLE_AI_API_KEY');
+        if (storedKey) {
+            document.getElementById('apiKey').value = storedKey.replace(/"/g, '');
+        }
+
+        async function checkModels() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+
+            if (!apiKey) {
+                alert('APIキーを入力してください');
+                return;
+            }
+
+            statusDiv.textContent = '取得中...';
+            resultsDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+
+                statusDiv.textContent = `取得成功: ${data.models ? data.models.length : 0} 個のモデルが見つかりました`;
+
+                const models = data.models || [];
+                const sortedModels = models.sort((a, b) => a.name.localeCompare(b.name));
+
+                let html = '';
+                sortedModels.forEach(model => {
+                    const isImage = model.name.includes('image') || model.name.includes('vision');
+                    html += `
+                        <div class="model-item">
+                            <div class="${isImage ? 'highlight' : ''}">${model.name}</div>
+                            <div style="font-size: 0.9em; color: #ccc;">${model.description || 'No description'}</div>
+                            <div style="font-size: 0.8em; color: #aaa;">Supported Methods: ${model.supportedGenerationMethods.join(', ')}</div>
+                        </div>
+                    `;
+                });
+
+                resultsDiv.innerHTML = html;
+
+            } catch (err) {
+                statusDiv.textContent = 'エラーが発生しました';
+                resultsDiv.innerHTML = `<pre style="color: #ff6b6b">${err.message}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>
