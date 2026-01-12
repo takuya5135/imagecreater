@@ -37,7 +37,7 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
             // Previous working parallel version didn't pass strict aspect ratio in config, so let's stick to that for stability.
 
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-ultra-generate-001:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:generateContent?key=${apiKey}`,
                 {
                     method: "POST",
                     headers: {
@@ -96,7 +96,7 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
 }
 
 export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
-    console.log("Generating 3 variations with Nano Banana AI (Imagen 4 Ultra)...");
+    console.log("Generating 3 variations with Nano Banana AI (Imagen 4)...");
 
     if (!apiKey) {
         throw new Error("API Key is missing. Please set your Nano Banana API Key.");
