@@ -1,4 +1,44 @@
 
+// Helper to analyze image using Gemini Vision and extract prompt keywords
+async function analyzeImage(apiKey, base64Image) {
+    try {
+        const partsData = base64Image.split(',');
+        if (partsData.length !== 2) return "";
+        const [meta, data] = partsData;
+        const mimeType = meta.split(':')[1].split(';')[0];
+
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: "Describe the visual style, lighting, composition, and color palette of this food image in potential prompt keywords. Focus on the artistic aspects. Be concise. Output format: 'Style: ..., Lighting: ..., Composition: ...'" },
+                            {
+                                inlineData: {
+                                    mimeType: mimeType,
+                                    data: data
+                                }
+                            }
+                        ]
+                    }]
+                })
+            }
+        );
+
+        if (!response.ok) return "";
+        const resData = await response.json();
+        const description = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        console.log("Image Analysis:", description);
+        return description;
+    } catch (e) {
+        console.warn("Failed to analyze image:", e);
+        return "";
+    }
+}
+
 // Helper to generate a single image with retries
 async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
     let attempts = 0;
@@ -8,6 +48,19 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
     // Use the confirmed available model
     const MODEL_ID = 'imagen-4.0-ultra-generate-001';
 
+    // If we have a benchmark image, we only analyze it ONCE per batch usually, 
+    // but here we are inside the single image function. 
+    // Note: To be efficient, we should analyze once outside, but for simplicity/parallelism refactor 
+    // we can do it here or pass the analysis in. 
+    // *However*, since `generateImages` calls this, let's allow `prompt` to already contain the analysis if possible,
+    // OR handled inside `generateImages`.
+    // Actually, `generateImages` is better place to do the analysis once.
+    // So `generateSingleImage` just takes the final prompt.
+    // BUT, the existing signature is (apiKey, prompt, benchmarkImage, settings).
+    // I will modify `generateImages` to do the analysis and append it to `prompt` BEFORE calling this.
+    // So `benchmarkImage` param here might be unused for Imagen logic, but kept for signature compatibility 
+    // or if we switch back to a model that supports it natively.
+
     while (attempts < MAX_ATTEMPTS) {
         attempts++;
         try {
@@ -15,6 +68,8 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
 
             if (MODEL_ID.includes('imagen')) {
                 // Imagen Model (Predict API)
+                // Vision-Enhanced Prompting: The prompt should already include the description from generateImages
+
                 const payload = {
                     instances: [
                         {
@@ -22,27 +77,12 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
                         }
                     ],
                     parameters: {
-                        sampleCount: 1
+                        sampleCount: 1,
+                        // aspect_ratio: "4:3" // Optional: could infer from settings
                     }
                 };
 
-                // Add benchmark image if available (Image-to-Image)
-                // Note: Exact format for Imagen on Gemini API might vary, but standard Vertex is:
-                // instances[0].image = { bytesBase64Encoded: ... }
-                if (benchmarkImage && attempts < MAX_ATTEMPTS) {
-                    const partsData = benchmarkImage.split(',');
-                    if (partsData.length === 2) {
-                        const base64Data = partsData[1];
-                        payload.instances[0].image = {
-                            bytesBase64Encoded: base64Data
-                        };
-                    }
-                }
-
-                // Add Aspect Ratio if settings allows (Imagen specific param)
-                // converting generic width/height to closest standard aspect ratio string is complex,
-                // for now we rely on the prompt or default. 
-                // Alternatively, we could add "aspectRatio": "3:4" etc if we calculated it.
+                // Note: We are NOT sending the image bytes to Imagen anymore, relying on the prompt description.
 
                 response = await fetch(
                     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:predict?key=${apiKey}`,
@@ -54,19 +94,16 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
                 );
 
             } else {
-                // Gemini Model (GenerateContent API)
-                // Construct the parts array
+                // Gemini Model (GenerateContent API) - Legacy/Fallback path
                 const parts = [
-                    { text: `Generate an image of ${currentPrompt}. Do not include any text, words, letters, or numbers in the image. Pure visual representation only.` }
+                    { text: `Generate an image of ${currentPrompt}.` }
                 ];
 
-                // Add benchmark image unless it's the final fallback attempt
                 if (benchmarkImage && attempts < MAX_ATTEMPTS) {
                     const partsData = benchmarkImage.split(',');
                     if (partsData.length === 2) {
                         const [meta, base64Data] = partsData;
                         const mimeType = meta.split(':')[1].split(';')[0];
-
                         parts.push({
                             inlineData: {
                                 mimeType: mimeType,
@@ -74,8 +111,6 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
                             }
                         });
                     }
-                } else if (benchmarkImage && attempts === MAX_ATTEMPTS) {
-                    // Fallback to text only
                 }
 
                 response = await fetch(
@@ -86,16 +121,7 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
                             "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
-                            contents: [{
-                                parts: parts
-                            }],
-                            generationConfig: {},
-                            safetySettings: [
-                                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                            ]
+                            contents: [{ parts: parts }]
                         }),
                     }
                 );
@@ -108,17 +134,12 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
 
             const data = await response.json();
 
-            // PARSE RESPONSE (Normalize between Predict and GenerateContent)
-
+            // PARSE RESPONSE
             // 1. Imagen Predict Response
             if (data.predictions && data.predictions.length > 0) {
                 const prediction = data.predictions[0];
-                // Prediction can be { bytesBase64Encoded: "..." } or { mimeType: "...", bytesBase64Encoded: "..." }
-                const b64 = prediction.bytesBase64Encoded || prediction; // Handle potential wrapper
-                const mime = prediction.mimeType || "image/png"; // Default to png if not specified, though usually jpeg/png
-
-                // If prediction is just a string (rare but possible in some legacy APIs), handle it? 
-                // Standard new Imagen is object.
+                const b64 = prediction.bytesBase64Encoded || prediction;
+                const mime = prediction.mimeType || "image/png";
 
                 if (b64) {
                     return {
@@ -144,14 +165,8 @@ async function generateSingleImage(apiKey, prompt, benchmarkImage, settings) {
                         }
                     }
                 }
-                // If we get here for Gemini, check for failures to retry
-                const firstContent = data.candidates[0]?.content?.parts?.[0]?.text;
-                if (firstContent && attempts < MAX_ATTEMPTS) continue; // Retry on text
-                if (data.candidates.length === 0 && attempts < MAX_ATTEMPTS) continue; // Retry on empty
             }
 
-            // If we are here, we failed to find an image in the success response
-            // For Imagen, empty predictions? For Gemini, valid response but no image?
             throw new Error("No image data found in response");
 
         } catch (error) {
@@ -170,20 +185,31 @@ export async function generateImages(apiKey, prompt, benchmarkImage, settings) {
         throw new Error("API Key is missing. Please set your Nano Banana API Key.");
     }
 
-    // Define 3 explicit variations to ensure diversity
-    // Variation 1: Balanced / Standard (The user's direct intent)
-    // Variation 2: Overhead View / Flat Lay (Focus on composition & layout)
-    // Variation 3: Macro / Cinematic (Focus on texture, depth offered, and dramatic lighting)
+    let enhancedPromptBase = prompt;
 
+    // STEP 1: VISION ANALYSIS (Vision-Enhanced Prompting)
+    if (benchmarkImage) {
+        console.log("Analyzing benchmark image...");
+        const analysis = await analyzeImage(apiKey, benchmarkImage);
+        if (analysis) {
+            console.log("Analysis result:", analysis);
+            // Append analysis to the prompt
+            enhancedPromptBase = `${prompt}. Visual Reference Style: ${analysis}`;
+        }
+    }
+
+    // Define 3 explicit variations
     const variations = [
-        "", // Standard (Base prompt)
+        "", // Standard
         " (Overhead view, flat lay composition, organized layout, commercial food photography style)",
         " (Macro close-up, highly detailed texture, shallow depth of field, dramatic cinematic lighting, side angle)"
     ];
 
-    // Run 3 generation requests in parallel with different prompt suffixes
+    // Run 3 generation requests in parallel
+    // Note: We pass 'null' for benchmarkImage to generateSingleImage because we've already "consumed" it 
+    // via the enhanced prompt. This prevents double-handling or sending invalid payloads to Imagen.
     const promises = variations.map(suffix =>
-        generateSingleImage(apiKey, prompt + suffix, benchmarkImage, settings)
+        generateSingleImage(apiKey, enhancedPromptBase + suffix, null, settings)
     );
 
     const results = await Promise.all(promises);
